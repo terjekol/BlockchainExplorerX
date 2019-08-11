@@ -1,0 +1,91 @@
+﻿@page
+@using System.Reflection
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model IndexModel
+
+
+<div style="display: flex;flex-direction: row">
+    <div>
+        <h3>Menu</h3>
+        <div style="">
+            <select onchange="show(this.value)">
+                <option value="blank"></option>
+                }
+                @foreach (var action in Model.Actions)
+                {
+                    var actionName = Model.ShortenName(action.Name);
+                    <option value="@action.Name">@actionName</option>
+                }
+            </select>
+            @foreach (var action in Model.Actions)
+            {
+                var actionName = "Get" + Model.ShortenName(action.Name);
+                actionName = string.Concat(actionName.Select(x => Char.IsUpper(x) ? " " + x : x.ToString())).TrimStart(' ');
+                <form id="@action.Name" style="display: none">
+                    @Html.Hidden("actionName", action.Name)
+                    @foreach (var param in action.GetParameters())
+                    {
+                        @param.Name
+                        <input name="paramValue" type="@Model.InputTypeFromCsType(@param.ParameterType)" />
+                    }
+                    <input type="submit" value="@actionName" />
+                </form>
+            }
+        </div>
+        <table class="values">
+            @foreach (var prop in Model.SimpleProps ?? Enumerable.Empty<PropertyInfo>())
+            {
+                var value = Model.GetValue(prop);
+                <tr>
+                    <th>@prop.Name</th>
+                    <td class="content">@value</td>
+                </tr>
+            }
+        </table>
+
+        @if (Model.CollectionProps != null && Model.CollectionProps.Length > 0)
+        {
+            for (var index = 0; index < Model.CollectionProps.Length; index++)
+            {
+                var prop = Model.CollectionProps[index];
+                <h4>@prop.Name</h4>
+                var collectionCount = Model.GetCollectionCount(prop, index);
+                var collection = Model.GetCollectionElement(prop, index);
+
+                var props = collection.GetType().GetProperties().Where(p => !p.PropertyType.Name.Contains("Collection"));
+                var collectionNo = Model.CurrentSearch?.GetCollectionNo(index + 1);
+
+                <span>Showing #@collectionNo of @collectionCount</span>
+                @if (collectionNo > 1)
+                 {
+                     @Html.ActionLink("Previous", "", Model.CurrentSearch.GetParamsObj(-1, index + 1));
+                 }
+                <span></span>
+                @if (collectionNo < collectionCount)
+                 {
+                     @Html.ActionLink("Next", "", Model.CurrentSearch.GetParamsObj(1, index + 1));
+                 }
+
+                <table class="values">
+                    @foreach (var collProp in props)
+                    {
+                        var value = collProp.GetValue(collection)?.ToString();
+
+                        <tr>
+                            <td>@collProp.Name</td>
+                            <td class="content">@value</td>
+                        </tr>
+                    }
+                </table>
+            }
+        }
+
+    </div>
+</div>
+
+<script>
+    function show(actionName) {
+        for (var form of document.getElementsByTagName('form')) form.style.display = 'none';
+        document.getElementById(actionName).style.display = 'inline';
+    }
+</script>
